@@ -20,6 +20,7 @@ ${BOLD}lab${RESET} - hands-on Istio practice
   lab solve <id>           apply the reference solution to the cluster
   lab verify [id]          (authors/CI) prove start-state FAILS and solution PASSES
   lab doctor               make sure the cluster + Istio are up
+  lab budget               show CPU requested vs the 2-core Codespace budget
   lab reset-cluster        delete and rebuild the whole cluster
 
 <id> is the lab number, e.g. 1 or 01.
@@ -42,6 +43,20 @@ load_meta() {  # sets TITLE DOMAIN MODES MINUTES
 
 current_mode() {
   if kubectl -n istio-system get ds ztunnel >/dev/null 2>&1; then echo ambient; else echo sidecar; fi
+}
+
+requested_cpu_m() {  # total CPU requests on the node, in millicores
+  kubectl describe node "${CLUSTER_NAME}-control-plane" 2>/dev/null | awk '
+    /^  cpu /{ v=$2; if (v ~ /m$/) { sub(/m$/,"",v); print v+0 } else { print v*1000 }; exit }'
+}
+
+cmd_budget() {
+  local used; used="$(requested_cpu_m)"
+  [ -n "$used" ] || { warn "could not read node resources"; return 1; }
+  echo "CPU requested by pods: ${used}m  (budget: ${CPU_BUDGET_M}m of 2000m on the smallest Codespace)"
+  if [ "$used" -le "$CPU_BUDGET_M" ]; then return 0; fi
+  echo "${RED}Over budget.${RESET} Lower requests in setup/istio-install.sh or the lab manifests." >&2
+  return 1
 }
 
 cmd_list() {
@@ -122,6 +137,11 @@ cmd_verify() {
     else
       bad "reference solution does NOT pass the checker"; echo "$out"; fails=$((fails + 1))
     fi
+    if cmd_budget >/dev/null 2>&1; then
+      ok "fits the 2-core budget ($(requested_cpu_m)m of ${CPU_BUDGET_M}m requested)"
+    else
+      bad "over the 2-core CPU budget ($(requested_cpu_m)m requested, limit ${CPU_BUDGET_M}m)"; fails=$((fails + 1))
+    fi
   done
   echo
   [ "$fails" -eq 0 ] && { echo "${GREEN}${BOLD}All labs verified.${RESET}"; return 0; }
@@ -143,6 +163,7 @@ main() {
     solve)          cmd_solve "$@" ;;
     verify)         cmd_verify "$@" ;;
     doctor)         cmd_doctor ;;
+    budget)         cmd_budget ;;
     reset-cluster)  cmd_reset_cluster ;;
     help|-h|--help) usage ;;
     *) usage; exit 1 ;;

@@ -32,6 +32,12 @@ if ! command -v istioctl >/dev/null 2>&1 || ! istioctl version --remote=false 2>
   $SUDO install -m 0755 "$TMP/istioctl" /usr/local/bin/istioctl
 fi
 
-echo ">> Linking the lab CLI"
-$SUDO ln -sf "$ROOT/bin/lab" /usr/local/bin/lab
+# Git (or unzipping on Windows) can drop the execute bit. Restore it, and ALSO install `lab`
+# as a tiny wrapper that runs the script through bash, so it works even if the bit is missing.
+chmod +x "$ROOT"/bin/* "$ROOT"/setup/*.sh "$ROOT"/labs/*/*.sh "$ROOT"/labs/*/solution/*.sh 2>/dev/null || true
+
+BIN_DIR="${BIN_DIR:-/usr/local/bin}"
+echo ">> Installing the lab CLI wrapper in ${BIN_DIR}"
+printf '#!/usr/bin/env bash\nexec bash "%s/bin/lab" "$@"\n' "$ROOT" | $SUDO tee "$BIN_DIR/lab" >/dev/null
+$SUDO chmod 0755 "$BIN_DIR/lab"
 echo ">> Tools ready."

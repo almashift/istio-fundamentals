@@ -10,15 +10,18 @@
     }
   },
   "hostRequirements": {
-    "cpus": 4,
-    "memory": "8gb"
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
   },
   "containerEnv": {
     "ISTIO_MODE": "sidecar"
   },
   "onCreateCommand": "bash setup/install-tools.sh",
   "postStartCommand": "bash setup/ensure-cluster.sh",
-  "forwardPorts": [8080],
+  "forwardPorts": [
+    8080
+  ],
   "customizations": {
     "vscode": {
       "extensions": [

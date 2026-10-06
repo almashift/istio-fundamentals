@@ -23,7 +23,7 @@ jobs:
         run: bash setup/ensure-cluster.sh
 
       - name: Verify every lab
-        run: lab verify
+        run: bash bin/lab verify
 
       - name: Debug info on failure
         if: failure()
