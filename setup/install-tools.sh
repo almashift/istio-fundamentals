@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Installs kind, istioctl (pinned) and the `lab` CLI. Used by the devcontainer AND by CI.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/versions.env"
+
+SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+case "$(uname -m)" in
+  x86_64)  ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+if ! command -v kubectl >/dev/null 2>&1; then
+  echo ">> Installing kubectl ${K8S_VERSION}"
+  curl -fsSL -o "$TMP/kubectl" "https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/${ARCH}/kubectl"
+  $SUDO install -m 0755 "$TMP/kubectl" /usr/local/bin/kubectl
+fi
+
+if ! command -v kind >/dev/null 2>&1 || ! kind version | grep -q "${KIND_VERSION}"; then
+  echo ">> Installing kind ${KIND_VERSION}"
+  curl -fsSL -o "$TMP/kind" "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${ARCH}"
+  $SUDO install -m 0755 "$TMP/kind" /usr/local/bin/kind
+fi
+
+if ! command -v istioctl >/dev/null 2>&1 || ! istioctl version --remote=false 2>/dev/null | grep -q "${ISTIO_VERSION}"; then
+  echo ">> Installing istioctl ${ISTIO_VERSION}"
+  curl -fsSL -o "$TMP/istioctl.tgz" \
+    "https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istioctl-${ISTIO_VERSION}-linux-${ARCH}.tar.gz"
+  tar -xzf "$TMP/istioctl.tgz" -C "$TMP" istioctl
+  $SUDO install -m 0755 "$TMP/istioctl" /usr/local/bin/istioctl
+fi
+
+echo ">> Linking the lab CLI"
+$SUDO ln -sf "$ROOT/bin/lab" /usr/local/bin/lab
+echo ">> Tools ready."

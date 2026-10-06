@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# lab - Alma Academy practice runner
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/bin/lib.sh"
+source "$ROOT/versions.env"
+STATE="$ROOT/.lab-state"
+mkdir -p "$STATE"
+
+usage() {
+  cat <<USAGE
+${BOLD}lab${RESET} - hands-on Istio practice
+
+  lab list                 show all labs and your progress
+  lab start <id>           (re)build the starting state and show the task
+  lab task <id>            show the task again
+  lab check <id>           grade your work
+  lab hint <id>            reveal the next hint (use sparingly!)
+  lab solution <id>        reveal the explained solution
+  lab solve <id>           apply the reference solution to the cluster
+  lab verify [id]          (authors/CI) prove start-state FAILS and solution PASSES
+  lab doctor               make sure the cluster + Istio are up
+  lab reset-cluster        delete and rebuild the whole cluster
+
+<id> is the lab number, e.g. 1 or 01.
+USAGE
+}
+
+lab_dir() {
+  local q="${1:-}"; [ -n "$q" ] || die "Missing lab id. Try: lab list"
+  if [[ "$q" =~ ^[0-9]+$ ]]; then q="$(printf '%02d' "$((10#$q))")"; fi
+  local m=( "$ROOT"/labs/"$q"* )
+  [ -d "${m[0]}" ] || die "No lab matching '$1'. Try: lab list"
+  echo "${m[0]}"
+}
+
+load_meta() {  # sets TITLE DOMAIN MODES MINUTES
+  TITLE=""; DOMAIN=""; MODES="sidecar"; MINUTES="?"
+  # shellcheck disable=SC1091
+  source "$1/meta.env"
+}
+
+current_mode() {
+  if kubectl -n istio-system get ds ztunnel >/dev/null 2>&1; then echo ambient; else echo sidecar; fi
+}
+
+cmd_list() {
+  printf "%s  %-3s %-46s %-22s %s\n" " " "ID" "TITLE" "DOMAIN" "MIN"
+  local d n
+  for d in "$ROOT"/labs/[0-9]*/; do
+    d="${d%/}"; n="$(basename "$d")"; load_meta "$d"
+    local mark=" "; [ -f "$STATE/$n.passed" ] && mark="${GREEN}✔${RESET}"
+    printf "%s  %-3s %-46s %-22s %s\n" "$mark" "${n%%-*}" "$TITLE" "$DOMAIN" "$MINUTES"
+  done
+}
+
+cmd_start() {
+  local d n; d="$(lab_dir "${1:-}")"; n="$(basename "$d")"; load_meta "$d"
+  kubectl cluster-info >/dev/null 2>&1 || die "Cluster not reachable. Run: lab doctor"
+  local mode; mode="$(current_mode)"
+  [[ " $MODES " == *" $mode "* ]] || warn "This lab is written for '$MODES' but the cluster runs in '$mode' mode."
+  info "Preparing lab: $TITLE"
+  LAB_DIR="$d" bash "$d/init.sh"
+  rm -f "$STATE/$n.passed" "$STATE/$n.hints"
+  date +%s > "$STATE/$n.started"
+  echo; cat "$d/task.md"
+}
+
+cmd_task() { cat "$(lab_dir "${1:-}")/task.md"; }
+
+cmd_check() {
+  local d n; d="$(lab_dir "${1:-}")"; n="$(basename "$d")"
+  if bash "$d/check.sh"; then
+    touch "$STATE/$n.passed"
+    if [ -f "$STATE/$n.started" ]; then
+      local secs=$(( $(date +%s) - $(cat "$STATE/$n.started") ))
+      echo "Time taken: $((secs / 60))m $((secs % 60))s"
+    fi
+  else
+    return 1
+  fi
+}
+
+cmd_hint() {
+  local d n; d="$(lab_dir "${1:-}")"; n="$(basename "$d")"
+  local used=0; [ -f "$STATE/$n.hints" ] && used="$(cat "$STATE/$n.hints")"
+  local next=$((used + 1))
+  if [ -f "$d/hints/$next.md" ]; then
+    echo "$next" > "$STATE/$n.hints"
+    info "Hint $next"; cat "$d/hints/$next.md"
+  else
+    echo "No more hints. Try 'lab solution ${1}' if you are truly stuck."
+  fi
+}
+
+cmd_solution() {
+  local d; d="$(lab_dir "${1:-}")"
+  if [ "${LAB_YES:-}" != "1" ]; then
+    read -r -p "Reveal the solution? You'll learn more if you try first. [y/N] " ans
+    [[ "$ans" =~ ^[Yy]$ ]] || { echo "Good call. Try 'lab hint ${1}' first."; return 0; }
+  fi
+  cat "$d/solution/explanation.md"
+}
+
+cmd_solve() { local d; d="$(lab_dir "${1:-}")"; LAB_DIR="$d" bash "$d/solution/apply.sh"; }
+
+cmd_verify() {
+  local targets=() d n out fails=0
+  if [ $# -gt 0 ]; then targets=( "$(lab_dir "$1")" ); else targets=( "$ROOT"/labs/[0-9]*/ ); fi
+  for d in "${targets[@]}"; do
+    d="${d%/}"; n="$(basename "$d")"
+    section "verify: $n"
+    LAB_DIR="$d" bash "$d/init.sh" >/dev/null 2>&1 || { bad "init.sh failed"; fails=$((fails + 1)); continue; }
+    if bash "$d/check.sh" >/dev/null 2>&1; then
+      bad "the STARTING state passes the checker (it must fail)"; fails=$((fails + 1))
+    else
+      ok "starting state fails the checker, as it should"
+    fi
+    LAB_DIR="$d" bash "$d/solution/apply.sh" >/dev/null 2>&1 || { bad "solution/apply.sh failed"; fails=$((fails + 1)); continue; }
+    if out="$(bash "$d/check.sh" 2>&1)"; then
+      ok "reference solution passes the checker"
+    else
+      bad "reference solution does NOT pass the checker"; echo "$out"; fails=$((fails + 1))
+    fi
+  done
+  echo
+  [ "$fails" -eq 0 ] && { echo "${GREEN}${BOLD}All labs verified.${RESET}"; return 0; }
+  echo "${RED}${BOLD}${fails} problem(s) found.${RESET}"; return 1
+}
+
+cmd_doctor() { bash "$ROOT/setup/ensure-cluster.sh"; }
+cmd_reset_cluster() { kind delete cluster --name "$CLUSTER_NAME" || true; bash "$ROOT/setup/ensure-cluster.sh"; }
+
+main() {
+  local cmd="${1:-help}"; shift || true
+  case "$cmd" in
+    list)           cmd_list ;;
+    start|reset)    cmd_start "$@" ;;
+    task)           cmd_task "$@" ;;
+    check)          cmd_check "$@" ;;
+    hint)           cmd_hint "$@" ;;
+    solution)       cmd_solution "$@" ;;
+    solve)          cmd_solve "$@" ;;
+    verify)         cmd_verify "$@" ;;
+    doctor)         cmd_doctor ;;
+    reset-cluster)  cmd_reset_cluster ;;
+    help|-h|--help) usage ;;
+    *) usage; exit 1 ;;
+  esac
+}
+main "$@"
