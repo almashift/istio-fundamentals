@@ -26,8 +26,16 @@ created it), not automatically to the original repository owner. With a personal
 Codespace is normally billed to your account; check your GitHub billing settings and stop the
 Codespace when you finish. Usage beyond your included allowance may be charged to you.
 
-## Run locally instead
-Requires Docker. Either open the folder in VS Code with the *Dev Containers*
-extension, or run `bash setup/install-tools.sh && bash setup/ensure-cluster.sh`
-on a Linux machine with Docker installed.
+## Run locally with a Dev Container
 
+This uses the same development container configuration as Codespaces, but runs on your own
+computer. You need Docker Desktop (running) and Visual Studio Code with the
+[Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+
+1. Clone your fork and open its folder in VS Code.
+2. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and select **Dev Containers: Reopen in Container**.
+3. Wait for the container setup to finish and for the terminal to print `Environment ready`.
+   The first start installs the tools, creates a local `kind` cluster, and installs Istio.
+4. In the VS Code terminal, use the lab commands from the Codespaces quick start above.
+
+The cluster and containers run locally on your computer, so this does not use GitHub Codespaces compute. Docker and the Kubernetes cluster still use local disk, memory, and CPU.

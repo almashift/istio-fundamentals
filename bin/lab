@@ -45,9 +45,21 @@ current_mode() {
   if kubectl -n istio-system get ds ztunnel >/dev/null 2>&1; then echo ambient; else echo sidecar; fi
 }
 
+cleanup_other_labs() {  # keep only the namespace of lab id $1 (e.g. 02 -> lab02)
+  local keep="lab$1" ns
+  for ns in $(kubectl get ns -o name 2>/dev/null | sed 's|namespace/||' | grep -E '^lab[0-9]{2}$' || true); do
+    if [ "$ns" != "$keep" ]; then
+      echo "Cleaning up namespace $ns (keeps the cluster within the 2-core budget)"
+      kubectl delete ns "$ns" --wait=true >/dev/null 2>&1 || true
+    fi
+  done
+}
+
 requested_cpu_m() {  # total CPU requests on the node, in millicores
-  kubectl describe node "${CLUSTER_NAME}-control-plane" 2>/dev/null | awk '
-    /^  cpu /{ v=$2; if (v ~ /m$/) { sub(/m$/,"",v); print v+0 } else { print v*1000 }; exit }'
+  local out
+  out="$(kubectl describe node "${CLUSTER_NAME}-control-plane" 2>/dev/null)" || return 1
+  awk '
+    /^  cpu /{ v=$2; if (v ~ /m$/) { sub(/m$/,"",v); print v+0 } else { print v*1000 }; exit }' <<<"$out"
 }
 
 cmd_budget() {
@@ -74,6 +86,7 @@ cmd_start() {
   kubectl cluster-info >/dev/null 2>&1 || die "Cluster not reachable. Run: lab doctor"
   local mode; mode="$(current_mode)"
   [[ " $MODES " == *" $mode "* ]] || warn "This lab is written for '$MODES' but the cluster runs in '$mode' mode."
+  cleanup_other_labs "${n%%-*}"
   info "Preparing lab: $TITLE"
   LAB_DIR="$d" bash "$d/init.sh"
   rm -f "$STATE/$n.passed" "$STATE/$n.hints"
@@ -125,6 +138,7 @@ cmd_verify() {
   for d in "${targets[@]}"; do
     d="${d%/}"; n="$(basename "$d")"
     section "verify: $n"
+    cleanup_other_labs "${n%%-*}"
     LAB_DIR="$d" bash "$d/init.sh" >/dev/null 2>&1 || { bad "init.sh failed"; fails=$((fails + 1)); continue; }
     if bash "$d/check.sh" >/dev/null 2>&1; then
       bad "the STARTING state passes the checker (it must fail)"; fails=$((fails + 1))

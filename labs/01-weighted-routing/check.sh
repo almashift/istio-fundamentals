@@ -10,15 +10,23 @@ MIN_V2=$((REQUESTS * 10 / 100))   # v2 share must land between 10% ...
 MAX_V2=$((REQUESTS * 30 / 100))   # ... and 30% (wide enough to avoid false failures)
 
 apps_ready()        { kubectl -n "$NS" wait --for=condition=Available deploy --all --timeout=5s; }
-sidecar_injected()  { kubectl -n "$NS" get pod -l app=client \
-                        -o jsonpath='{.items[0].spec.containers[*].name} {.items[0].spec.initContainers[*].name}' \
-                        | grep -q istio-proxy; }
+# NOTE: capture output first, then grep. `cmd | grep -q` under pipefail can fail with SIGPIPE.
+sidecar_injected() {
+  local out
+  out="$(kubectl -n "$NS" get pod -l app=client \
+         -o jsonpath='{.items[0].spec.containers[*].name} {.items[0].spec.initContainers[*].name}' 2>/dev/null)" || return 1
+  grep -q istio-proxy <<<"$out"
+}
 replicas_unchanged() {
   [ "$(kubectl -n "$NS" get deploy echo-v1 -o jsonpath='{.spec.replicas}')" = "1" ] &&
   [ "$(kubectl -n "$NS" get deploy echo-v2 -o jsonpath='{.spec.replicas}')" = "1" ]
 }
 service_unchanged() { [ "$(kubectl -n "$NS" get svc echo -o jsonpath='{.spec.selector}')" = '{"app":"echo"}' ]; }
-analyzer_clean()    { ! istioctl analyze -n "$NS" 2>&1 | grep -q 'Error \['; }
+analyzer_clean() {
+  local out
+  out="$(istioctl analyze -n "$NS" 2>&1 || true)"
+  ! grep -q 'Error \[' <<<"$out"
+}
 
 measure() {
   kubectl -n "$NS" exec deploy/client -c client -- sh -c \

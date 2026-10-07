@@ -12,7 +12,8 @@ if [ "$cpus" -lt 2 ] || [ "$mem_mb" -lt 6500 ]; then
   echo "WARNING: this machine is below the 2 vCPU / 8 GB minimum; the cluster may be unstable." >&2
 fi
 
-if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
+clusters="$(kind get clusters 2>/dev/null || true)"
+if ! grep -qx "$CLUSTER_NAME" <<<"$clusters"; then
   echo ">> Creating kind cluster '${CLUSTER_NAME}' (Kubernetes ${K8S_VERSION}); a 2-core machine needs a few minutes"
   kind create cluster --name "$CLUSTER_NAME" \
     --image "kindest/node:${K8S_VERSION}" \

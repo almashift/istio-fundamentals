@@ -1,0 +1,105 @@
+# Starting state for lab 02 (namespace is injected; default mTLS mode is PERMISSIVE).
+#   echo, legacy  : services inside the mesh
+#   client-mesh   : in-mesh caller (has a sidecar)
+#   client-plain  : a batch job OUTSIDE the mesh (injection disabled on purpose)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: echo}
+  template:
+    metadata:
+      labels: {app: echo}
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0
+          args: ["-text=echo"]
+          ports: [{containerPort: 5678}]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+spec:
+  selector: {app: echo}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: legacy}
+  template:
+    metadata:
+      labels: {app: legacy}
+    spec:
+      containers:
+        - name: legacy
+          image: hashicorp/http-echo:1.0
+          args: ["-text=legacy"]
+          ports: [{containerPort: 5678}]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy
+spec:
+  selector: {app: legacy}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-mesh
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: client-mesh}
+  template:
+    metadata:
+      labels: {app: client-mesh}
+    spec:
+      containers:
+        - name: client
+          image: curlimages/curl:8.10.1
+          command: ["sleep", "infinity"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-plain
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: client-plain}
+  template:
+    metadata:
+      labels:
+        app: client-plain
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: client
+          image: curlimages/curl:8.10.1
+          command: ["sleep", "infinity"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
