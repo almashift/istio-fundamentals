@@ -1,0 +1,18 @@
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: orders-plaintext-for-reports
+spec:
+  selector:
+    matchLabels:
+      app: orders
+  mtls:
+    mode: PERMISSIVE

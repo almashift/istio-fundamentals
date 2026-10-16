@@ -1,0 +1,18 @@
+# A shopper outside the mesh (no sidecar): calls the store only through the gateway.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: visitor, labels: {app: visitor}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: visitor}}
+  template:
+    metadata:
+      labels: {app: visitor, sidecar.istio.io/inject: "false"}
+    spec:
+      containers:
+        - name: visitor
+          image: MESHMART_IMAGE
+          env: [{name: SERVICE, value: visitor}]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}

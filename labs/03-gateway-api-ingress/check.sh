@@ -4,11 +4,11 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$ROOT/bin/lib.sh"
 
-NS=lab03
-HOST=shop.example.com
-GW_SVC=edge-istio      # Istio names the generated Deployment/Service <gateway>-<gatewayClassName>
+NS=meshmart
+HOST=shop.meshmart.local
+GW_SVC=meshmart-gateway-istio   # Istio names the generated Deployment/Service <gateway>-<gatewayClassName>
 
-apps_ready() { kubectl -n "$NS" wait --for=condition=Available deploy/web deploy/api deploy/client --timeout=5s; }
+apps_ready() { kubectl -n "$NS" wait --for=condition=Available deploy/web deploy/orders deploy/visitor --timeout=5s; }
 # NOTE: capture output first, then grep. `cmd | grep -q` under pipefail can fail with SIGPIPE.
 has_sidecar() {
   local out
@@ -20,7 +20,7 @@ no_sidecar()   { ! has_sidecar "$1"; }
 crds_present() { kubectl get crd gateways.gateway.networking.k8s.io httproutes.gateway.networking.k8s.io; }
 services_unchanged() {
   [ "$(kubectl -n "$NS" get svc web -o jsonpath='{.spec.selector}')" = '{"app":"web"}' ] &&
-  [ "$(kubectl -n "$NS" get svc api -o jsonpath='{.spec.selector}')" = '{"app":"api"}' ]
+  [ "$(kubectl -n "$NS" get svc orders -o jsonpath='{.spec.selector}')" = '{"app":"orders"}' ]
 }
 no_istio_routing_api() {
   local out
@@ -32,62 +32,64 @@ analyzer_clean() {
   out="$(istioctl analyze -n "$NS" 2>&1 || true)"
   ! grep -q 'Error \[' <<<"$out"
 }
-gw() { kubectl -n "$NS" get gateways.gateway.networking.k8s.io edge -o jsonpath="$1" 2>/dev/null; }
+gw() { kubectl -n "$NS" get gateways.gateway.networking.k8s.io meshmart-gateway -o jsonpath="$1" 2>/dev/null; }
 gateway_class()    { [ "$(gw '{.spec.gatewayClassName}')" = istio ]; }
 gateway_port_80()  { local out; out="$(gw '{range .spec.listeners[*]}{.port}/{.protocol}{"\n"}{end}')" || return 1; grep -qx '80/HTTP' <<<"$out"; }
 gateway_accepted() { [ "$(gw '{.status.conditions[?(@.type=="Accepted")].status}')" = True ]; }
-# Anti-cheat: the Service the client calls must be the one Istio generated for Gateway `edge`.
-generated_by_edge() {
-  [ "$(kubectl -n "$NS" get "$1" "$GW_SVC" -o jsonpath='{.metadata.ownerReferences[*].kind}/{.metadata.ownerReferences[*].name}' 2>/dev/null)" = Gateway/edge ]
+# Anti-cheat: the Service the client calls must be the one Istio generated for Gateway `meshmart-gateway`.
+generated_by_gateway() {
+  [ "$(kubectl -n "$NS" get "$1" "$GW_SVC" -o jsonpath='{.metadata.ownerReferences[*].kind}/{.metadata.ownerReferences[*].name}' 2>/dev/null)" = Gateway/meshmart-gateway ]
 }
 gateway_pod_ready() { kubectl -n "$NS" wait --for=condition=Available "deploy/$GW_SVC" --timeout=5s; }
 route_attached() {
   local out
   out="$(kubectl -n "$NS" get httproutes.gateway.networking.k8s.io -o jsonpath='{range .items[*]}{range .status.parents[*]}{.parentRef.name}|{.conditions[?(@.type=="Accepted")].status}|{.conditions[?(@.type=="ResolvedRefs")].status}{"\n"}{end}{end}' 2>/dev/null)" || return 1
-  grep -qx 'edge|True|True' <<<"$out"
+  grep -qx 'meshmart-gateway|True|True' <<<"$out"
 }
 
-# req <host> <path>  -> "<body>|<status>"; status 000 means no HTTP response
+# req <host> <path>  -> "<service that answered>|<status>"; status 000 means no HTTP response.
+# MeshMart answers JSON whose first field is "service"; Envoy's own 404 has an empty body.
 req() {
-  local out
-  out="$(kubectl -n "$NS" exec deploy/client -c client -- \
-         curl -s --max-time 3 -H "Host: $1" -w '|%{http_code}' "http://$GW_SVC$2" 2>/dev/null || true)"
-  echo "${out//$'\n'/}"
+  local out svc
+  out="$(kubectl -n "$NS" exec deploy/visitor -c visitor -- \
+         curl -s --max-time 3 -H "Host: $1" -w '\n|%{http_code}' "http://$GW_SVC$2" 2>/dev/null || true)"
+  svc="$(grep -m1 -o '"service": "[a-z]*"' <<<"$out" | cut -d'"' -f4)"
+  echo "${svc}|${out##*|}"
 }
 # 404 for an unknown host must come from the gateway's Envoy, not from some other server.
 envoy_404() {
   local out
-  out="$(kubectl -n "$NS" exec deploy/client -c client -- \
-         curl -s -o /dev/null -D - --max-time 3 -H 'Host: unknown.example.com' "http://$GW_SVC/" 2>/dev/null || true)"
+  out="$(kubectl -n "$NS" exec deploy/visitor -c visitor -- \
+         curl -s -o /dev/null -D - --max-time 3 -H 'Host: unknown.meshmart.local' "http://$GW_SVC/" 2>/dev/null || true)"
   grep -qi '^server: istio-envoy' <<<"$out"
 }
 
 section "Environment is intact"
 check "Gateway API CRDs are installed"                         crds_present
-check "web, api and client are running"                        apps_ready
-check "client is still OUTSIDE the mesh (no sidecar)"          no_sidecar client
+check "web, orders and visitor are running"                        apps_ready
+check "visitor is still OUTSIDE the mesh (no sidecar)"         no_sidecar visitor
 
 section "Rules respected"
-check "Services web and api unchanged"                         services_unchanged
+check "Services web and orders unchanged"                         services_unchanged
 check "no Istio Gateway/VirtualService used (Gateway API only)" no_istio_routing_api
 check "istioctl analyze reports no errors"                     analyzer_clean
 
 section "Gateway"
-check "Gateway 'edge' uses gatewayClassName 'istio'"           gateway_class
-check "Gateway 'edge' has an HTTP listener on port 80"         gateway_port_80
-check "Gateway 'edge' is Accepted by Istio"                    gateway_accepted
-check "Service $GW_SVC was generated by Istio for Gateway 'edge'"    generated_by_edge svc
-check "Deployment $GW_SVC was generated by Istio for Gateway 'edge'" generated_by_edge deploy
+check "Gateway 'meshmart-gateway' uses gatewayClassName 'istio'"           gateway_class
+check "Gateway 'meshmart-gateway' has an HTTP listener on port 80"         gateway_port_80
+check "Gateway 'meshmart-gateway' is Accepted by Istio"                    gateway_accepted
+check "Service $GW_SVC was generated by Istio for Gateway 'meshmart-gateway'"    generated_by_gateway svc
+check "Deployment $GW_SVC was generated by Istio for Gateway 'meshmart-gateway'" generated_by_gateway deploy
 check "gateway pod is running"                                 gateway_pod_ready
-check "an HTTPRoute is attached to 'edge' and its backends resolve" route_attached
+check "an HTTPRoute is attached to 'meshmart-gateway' and its backends resolve" route_attached
 
-section "Traffic behaviour (client -> $GW_SVC, outside the mesh)"
+section "Traffic behaviour (visitor -> $GW_SVC, outside the mesh)"
 attempt=1
 while :; do
   root="$(req "$HOST" /)";            api="$(req "$HOST" /api)"
   orders="$(req "$HOST" /api/orders)"; docs="$(req "$HOST" /apidocs)"
-  other="$(req unknown.example.com /)"
-  if [ "$root" = 'web|200' ] && [ "$api" = 'api|200' ] && [ "$orders" = 'api|200' ] &&
+  other="$(req unknown.meshmart.local /)"
+  if [ "$root" = 'web|200' ] && [ "$api" = 'orders|200' ] && [ "$orders" = 'orders|200' ] &&
      [ "$docs" = 'web|200' ] && [ "$other" = '|404' ]; then break; fi
   [ "$attempt" -ge 3 ] && break
   attempt=$((attempt + 1)); sleep 4     # routes may still be propagating to the gateway
@@ -97,10 +99,10 @@ expect() {  # expect <got> <want> <description>
   if [ "$1" = "$2" ]; then ok "$3"; else bad "$3 (got '${1:-no result}', expected '$2')"; fi
 }
 expect "$root"   'web|200' "$HOST/ -> web"
-expect "$api"    'api|200' "$HOST/api -> api"
-expect "$orders" 'api|200' "$HOST/api/orders -> api"
+expect "$api"    'orders|200' "$HOST/api -> orders"
+expect "$orders" 'orders|200' "$HOST/api/orders -> orders"
 expect "$docs"   'web|200' "$HOST/apidocs -> web (a path prefix matches whole segments)"
-expect "$other"  '|404'    "unknown.example.com/ -> 404 (other hosts do not reach the shop)"
+expect "$other"  '|404'    "unknown.meshmart.local/ -> 404 (other hosts do not reach the shop)"
 check "that 404 is served by the gateway's Envoy"              envoy_404
 
 summary

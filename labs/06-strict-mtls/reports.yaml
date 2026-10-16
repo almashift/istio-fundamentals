@@ -1,0 +1,18 @@
+# A nightly reporting job that runs OUTSIDE the mesh (no sidecar) and reads from orders.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: reports, labels: {app: reports}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: reports}}
+  template:
+    metadata:
+      labels: {app: reports, sidecar.istio.io/inject: "false"}
+    spec:
+      containers:
+        - name: reports
+          image: MESHMART_IMAGE
+          env: [{name: SERVICE, value: reports}]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}

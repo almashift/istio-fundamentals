@@ -16,8 +16,9 @@ loadgen ──> web ──┬──> catalog (v1, v2)
 | `cart`, `orders` | Shopping cart and recent orders. `orders` calls `cart`. |
 | `loadgen` | Sends `web` two requests a second and counts the results: `curl localhost:8080/stats` inside the pod (`?reset=1` clears the counters). |
 
-Every service is the same image (`app/`); environment variables pick its role and can
-inject latency or errors. See the comment at the top of `app/main.go` for the full list.
+Every service is the same image (`app/`: one Python file, standard library only, no
+packages to install); environment variables pick its role and can
+inject latency or errors. See the docstring at the top of `app/app.py` for the full list.
 
 Labs deploy the store with `bash setup/meshmart.sh --mesh` (or `--no-mesh`) into the
 `meshmart` namespace. Handy endpoints on every service: `/version` (plain text, e.g.

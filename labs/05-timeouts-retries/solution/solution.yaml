@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: catalog
+spec:
+  hosts: [catalog]
+  http:
+    - route:
+        - destination: {host: catalog}
+      retries:
+        attempts: 2              # up to 2 retries after the first try
+        perTryTimeout: 1s        # give up on any single attempt after 1 second
+        retryOn: 5xx,reset,connect-failure,gateway-error

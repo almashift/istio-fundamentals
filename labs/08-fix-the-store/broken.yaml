@@ -1,0 +1,10 @@
+# Fault 1: a VirtualService whose destination host has a typo.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: catalog
+spec:
+  hosts: [catalog]
+  http:
+    - route:
+        - destination: {host: catalgo}

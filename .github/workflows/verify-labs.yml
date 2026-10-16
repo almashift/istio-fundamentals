@@ -16,17 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Compile errors show up as annotations on the run, readable without opening the logs.
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: meshmart/app/go.mod
-          cache: false
-
-      - name: Vet and build MeshMart
-        working-directory: meshmart/app
-        run: |
-          go vet ./...
-          go build -o /dev/null .
+      # Syntax errors show up as annotations on the run, readable without opening the logs.
+      - name: Check MeshMart compiles
+        run: python3 -m py_compile meshmart/app/app.py
 
       - name: Install kind, istioctl, lab CLI
         run: bash setup/install-tools.sh

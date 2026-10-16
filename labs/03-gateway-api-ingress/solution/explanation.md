@@ -5,31 +5,31 @@ lab solve 3      # applies solution/solution.yaml and waits for the gateway pod
 ```
 
 ## What and why
-1. **Gateway `edge`** (`gatewayClassName: istio`, HTTP listener on port 80). Istio's
+1. **Gateway `meshmart-gateway`** (`gatewayClassName: istio`, HTTP listener on port 80). Istio's
    gateway controller sees it and *deploys* a gateway for you: a Deployment and a
-   Service named `edge-istio` (`<gateway>-<class>`), both owned by the Gateway. Delete
+   Service named `meshmart-gateway-istio` (`<gateway>-<class>`), both owned by the Gateway. Delete
    the Gateway and they go away with it. This is "automated deployment"; with Istio's
    own `Gateway` API you had to install an ingress gateway yourself.
-2. **HTTPRoute `shop`** attaches to `edge` through `parentRefs` and only handles
-   `hostnames: [shop.example.com]`. Its rules:
-   - `PathPrefix /api` goes to `api`. Gateway API prefixes match **whole path segments**:
+2. **HTTPRoute `shop`** attaches to `meshmart-gateway` through `parentRefs` and only handles
+   `hostnames: [shop.meshmart.local]`. Its rules:
+   - `PathPrefix /api` goes to `orders`. Gateway API prefixes match **whole path segments**:
      `/api` and `/api/orders` match, `/apidocs` does not.
    - A rule with no `matches` means "PathPrefix `/`", so everything else goes to `web`.
    Rule order doesn't matter: the most specific (longest) match wins.
 3. A request for any other host matches no route, so the gateway's Envoy answers **404**.
 
 `allowedRoutes.namespaces.from: Same` is the default. It's written out to show that
-only routes in `lab03` may attach to this listener.
+only routes in `meshmart` may attach to this listener.
 
 ## How the checker proves it
-| Request from `client` (outside the mesh) to `edge-istio` | Expected |
+| Request from `visitor` (outside the mesh) to `meshmart-gateway-istio` | Expected |
 |---|---|
-| `Host: shop.example.com`, `/` | `web` |
-| `Host: shop.example.com`, `/api`, `/api/orders` | `api` |
-| `Host: shop.example.com`, `/apidocs` | `web` |
-| `Host: unknown.example.com`, `/` | 404 from `server: istio-envoy` |
+| `Host: shop.meshmart.local`, `/` | `web` |
+| `Host: shop.meshmart.local`, `/api`, `/api/orders` | `orders` |
+| `Host: shop.meshmart.local`, `/apidocs` | `web` |
+| `Host: unknown.meshmart.local`, `/` | 404 from `server: istio-envoy` |
 
-It also checks that `edge-istio` is owned by Gateway `edge`, so a hand-made Service or
+It also checks that `meshmart-gateway-istio` is owned by Gateway `meshmart-gateway`, so a hand-made Service or
 Deployment with that name doesn't count.
 
 ## About `PROGRAMMED False`
@@ -40,7 +40,7 @@ gateway, ask for a ClusterIP Service and the Gateway becomes `Programmed=True`:
 
 ```yaml
 metadata:
-  name: edge
+  name: meshmart-gateway
   annotations:
     networking.istio.io/service-type: ClusterIP
 ```
@@ -48,7 +48,7 @@ metadata:
 ## Common wrong answers
 - **Istio `Gateway` + `VirtualService`.** That also works on Istio, but the task asks for the
   Kubernetes Gateway API, and the ICA covers both. The checker rejects the Istio APIs here.
-- **No `hostnames` on the route.** `/` and `/api` work, but `unknown.example.com` reaches the
+- **No `hostnames` on the route.** `/` and `/api` work, but `unknown.meshmart.local` reaches the
   shop too: no 404.
 - **`RegularExpression` `/api.*`** instead of `PathPrefix /api`. Gateway API ranks every
   `PathPrefix` match, even `/`, above regex matches, so the catch-all rule wins and
