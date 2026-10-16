@@ -1,0 +1,191 @@
+# MeshMart, the example store used across the course. Deployed by setup/meshmart.sh into the
+# `meshmart` namespace; MESHMART_IMAGE is replaced with the image pinned in versions.env.
+#
+#   loadgen ──> web ──┬──> catalog (v1, v2)
+#                     ├──> cart
+#                     └──> orders ──> cart
+#
+# Every service runs the same image; env vars choose its role. Each has its own
+# ServiceAccount, so security labs can tell callers apart by identity.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: web}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: catalog}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: cart}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: orders}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: loadgen}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: web, labels: {app: web}}
+spec:
+  selector: {app: web}
+  ports: [{name: http, port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: catalog, labels: {app: catalog}}
+spec:
+  selector: {app: catalog}
+  ports: [{name: http, port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: cart, labels: {app: cart}}
+spec:
+  selector: {app: cart}
+  ports: [{name: http, port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: orders, labels: {app: orders}}
+spec:
+  selector: {app: orders}
+  ports: [{name: http, port: 80, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, labels: {app: web, version: v1}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: web, version: v1}}
+  template:
+    metadata: {labels: {app: web, version: v1}}
+    spec:
+      serviceAccountName: web
+      containers:
+        - name: web
+          image: MESHMART_IMAGE
+          env:
+            - {name: SERVICE, value: web}
+            - {name: VERSION, value: v1}
+            - {name: UPSTREAMS, value: "catalog,cart,orders"}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 2}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: catalog-v1, labels: {app: catalog, version: v1}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: catalog, version: v1}}
+  template:
+    metadata: {labels: {app: catalog, version: v1}}
+    spec:
+      serviceAccountName: catalog
+      containers:
+        - name: catalog
+          image: MESHMART_IMAGE
+          env:
+            - {name: SERVICE, value: catalog}
+            - {name: VERSION, value: v1}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 2}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: catalog-v2, labels: {app: catalog, version: v2}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: catalog, version: v2}}
+  template:
+    metadata: {labels: {app: catalog, version: v2}}
+    spec:
+      serviceAccountName: catalog
+      containers:
+        - name: catalog
+          image: MESHMART_IMAGE
+          env:
+            - {name: SERVICE, value: catalog}
+            - {name: VERSION, value: v2}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 2}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: cart, labels: {app: cart, version: v1}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: cart, version: v1}}
+  template:
+    metadata: {labels: {app: cart, version: v1}}
+    spec:
+      serviceAccountName: cart
+      containers:
+        - name: cart
+          image: MESHMART_IMAGE
+          env:
+            - {name: SERVICE, value: cart}
+            - {name: VERSION, value: v1}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 2}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: orders, labels: {app: orders, version: v1}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: orders, version: v1}}
+  template:
+    metadata: {labels: {app: orders, version: v1}}
+    spec:
+      serviceAccountName: orders
+      containers:
+        - name: orders
+          image: MESHMART_IMAGE
+          env:
+            - {name: SERVICE, value: orders}
+            - {name: VERSION, value: v1}
+            - {name: UPSTREAMS, value: "cart"}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 2}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: loadgen, labels: {app: loadgen, version: v1}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: loadgen, version: v1}}
+  template:
+    metadata: {labels: {app: loadgen, version: v1}}
+    spec:
+      serviceAccountName: loadgen
+      containers:
+        - name: loadgen
+          image: MESHMART_IMAGE
+          env:
+            - {name: SERVICE, value: loadgen}
+            - {name: TARGET, value: "http://web/"}
+            - {name: RATE, value: "2"}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 2}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}

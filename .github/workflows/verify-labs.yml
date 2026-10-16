@@ -12,15 +12,35 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
+      # Compile errors show up as annotations on the run, readable without opening the logs.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: meshmart/app/go.mod
+          cache: false
+
+      - name: Vet and build MeshMart
+        working-directory: meshmart/app
+        run: |
+          go vet ./...
+          go build -o /dev/null .
 
       - name: Install kind, istioctl, lab CLI
         run: bash setup/install-tools.sh
 
       - name: Create cluster and install Istio
         run: bash setup/ensure-cluster.sh
+
+      # Labs use the image tag pinned in versions.env. Building it here and loading it into
+      # kind tests this commit's MeshMart without publishing anything.
+      - name: Build MeshMart image and load it into kind
+        run: |
+          source versions.env
+          docker build -t "$MESHMART_IMAGE" meshmart/app
+          kind load docker-image "$MESHMART_IMAGE" --name "$CLUSTER_NAME"
 
       - name: Verify every lab
         run: bash bin/lab verify
@@ -29,4 +49,5 @@ jobs:
         if: failure()
         run: |
           kubectl get pods -A || true
+          kubectl -n meshmart describe pods || true
           kubectl -n istio-system logs deploy/istiod --tail=100 || true

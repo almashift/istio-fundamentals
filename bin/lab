@@ -35,19 +35,21 @@ lab_dir() {
   echo "${m[0]}"
 }
 
-load_meta() {  # sets TITLE DOMAIN MODES MINUTES
-  TITLE=""; DOMAIN=""; MODES="sidecar"; MINUTES="?"
+load_meta() {  # sets TITLE DOMAIN MODES MINUTES NAMESPACE
+  TITLE=""; DOMAIN=""; MODES="sidecar"; MINUTES="?"; NAMESPACE=""
   # shellcheck disable=SC1091
   source "$1/meta.env"
+  # MeshMart labs set NAMESPACE=meshmart; older standalone labs default to labNN.
+  [ -n "$NAMESPACE" ] || { local n; n="$(basename "$1")"; NAMESPACE="lab${n%%-*}"; }
 }
 
 current_mode() {
   if kubectl -n istio-system get ds ztunnel >/dev/null 2>&1; then echo ambient; else echo sidecar; fi
 }
 
-cleanup_other_labs() {  # keep only the namespace of lab id $1 (e.g. 02 -> lab02)
-  local keep="lab$1" ns
-  for ns in $(kubectl get ns -o name 2>/dev/null | sed 's|namespace/||' | grep -E '^lab[0-9]{2}$' || true); do
+cleanup_other_labs() {  # delete every lab namespace (labNN, meshmart) except $1
+  local keep="$1" ns
+  for ns in $(kubectl get ns -o name 2>/dev/null | sed 's|namespace/||' | grep -E '^(lab[0-9]{2}|meshmart)$' || true); do
     if [ "$ns" != "$keep" ]; then
       echo "Cleaning up namespace $ns (keeps the cluster within the 2-core budget)"
       kubectl delete ns "$ns" --wait=true >/dev/null 2>&1 || true
@@ -86,7 +88,7 @@ cmd_start() {
   kubectl cluster-info >/dev/null 2>&1 || die "Cluster not reachable. Run: lab doctor"
   local mode; mode="$(current_mode)"
   [[ " $MODES " == *" $mode "* ]] || warn "This lab is written for '$MODES' but the cluster runs in '$mode' mode."
-  cleanup_other_labs "${n%%-*}"
+  cleanup_other_labs "$NAMESPACE"
   info "Preparing lab: $TITLE"
   LAB_DIR="$d" bash "$d/init.sh"
   rm -f "$STATE/$n.passed" "$STATE/$n.hints"
@@ -138,14 +140,14 @@ cmd_verify() {
   for d in "${targets[@]}"; do
     d="${d%/}"; n="$(basename "$d")"
     section "verify: $n"
-    cleanup_other_labs "${n%%-*}"
-    LAB_DIR="$d" bash "$d/init.sh" >/dev/null 2>&1 || { bad "init.sh failed"; fails=$((fails + 1)); continue; }
+    load_meta "$d"; cleanup_other_labs "$NAMESPACE"
+    if ! out="$(LAB_DIR="$d" bash "$d/init.sh" 2>&1)"; then bad "init.sh failed"; echo "$out" | tail -20; fails=$((fails + 1)); continue; fi
     if bash "$d/check.sh" >/dev/null 2>&1; then
       bad "the STARTING state passes the checker (it must fail)"; fails=$((fails + 1))
     else
       ok "starting state fails the checker, as it should"
     fi
-    LAB_DIR="$d" bash "$d/solution/apply.sh" >/dev/null 2>&1 || { bad "solution/apply.sh failed"; fails=$((fails + 1)); continue; }
+    if ! out="$(LAB_DIR="$d" bash "$d/solution/apply.sh" 2>&1)"; then bad "solution/apply.sh failed"; echo "$out" | tail -20; fails=$((fails + 1)); continue; fi
     if out="$(bash "$d/check.sh" 2>&1)"; then
       ok "reference solution passes the checker"
     else
