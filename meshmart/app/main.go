@@ -16,6 +16,7 @@
 //	ERROR_CODE        HTTP status for injected errors (default 503)
 //	TARGET            loadgen only: URL to call (default http://web/)
 //	RATE              loadgen only: requests per second (default 2)
+//	SHUTDOWN_DELAY    how long to keep serving after SIGTERM (default 5s)
 //
 // Endpoints: /healthz (liveness/readiness), /version (plain-text version, handy in checks),
 // /stats (loadgen counters; ?reset=1 clears them), and everything else returns this
@@ -385,6 +386,9 @@ func main() {
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
+		// Keep serving briefly after SIGTERM: Kubernetes and the mesh take a moment to stop
+		// sending traffic to a terminating pod. Closing at once would fail those requests.
+		time.Sleep(envDuration("SHUTDOWN_DELAY", 5*time.Second))
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdown)

@@ -43,6 +43,12 @@ check "every MeshMart pod runs an istio-proxy sidecar"                      all_
 check "istiod has sent configuration to every MeshMart proxy"              proxies_synced
 
 section "Store still working (loadgen traffic for 15 seconds)"
+# Measure the settled store: wait (up to 60s) for pods from a restart to finish terminating.
+for _ in $(seq 1 30); do
+  terminating="$(kubectl -n "$NS" get pods -o jsonpath='{range .items[*]}{.metadata.deletionTimestamp}{"\n"}{end}' 2>/dev/null | grep -c . || true)"
+  [ "${terminating:-0}" -eq 0 ] && break
+  sleep 2
+done
 loadgen "?reset=1" >/dev/null
 sleep 15
 stats="$(loadgen "")"
