@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Compile errors show up as annotations on the run, readable without opening the logs.
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: meshmart/app/go.mod
           cache: false
@@ -43,7 +43,9 @@ jobs:
           kind load docker-image "$MESHMART_IMAGE" --name "$CLUSTER_NAME"
 
       - name: Verify every lab
-        run: bash bin/lab verify
+        run: |
+          set -o pipefail
+          bash bin/lab verify 2>&1 | tee verify.log
 
       - name: Debug info on failure
         if: failure()
@@ -51,3 +53,15 @@ jobs:
           kubectl get pods -A || true
           kubectl -n meshmart describe pods || true
           kubectl -n istio-system logs deploy/istiod --tail=100 || true
+
+      # Job logs need a GitHub login to read; annotations don't. Publish the end of the
+      # verify output and the pod states as one annotation so failures are visible to all.
+      - name: Summarise failure as an annotation
+        if: failure()
+        run: |
+          {
+            tail -80 verify.log 2>/dev/null || true
+            echo "--- pods"; kubectl get pods -A 2>&1 | tail -30 || true
+          } | sed 's/\x1b\[[0-9;]*m//g' > summary.txt
+          body="$(sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g' summary.txt)"
+          echo "::error title=lab verify failed::${body}"
