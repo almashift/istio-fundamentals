@@ -30,6 +30,8 @@ kubectl wait --for=condition=Ready node --all --timeout=300s
 if ! kubectl -n istio-system get deploy istiod >/dev/null 2>&1; then
   bash "$ROOT/setup/istio-install.sh"
 else
+  # Clusters created before the gateway labs have no Gateway API CRDs yet (restarts istiod if added).
+  bash "$ROOT/setup/gateway-api-crds.sh"
   kubectl -n istio-system rollout status deploy/istiod --timeout=300s
 fi
 echo ">> Environment ready. Try:  lab list"

@@ -8,6 +8,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/versions.env"
 MODE="${ISTIO_MODE:-sidecar}"
 
+# Gateway API CRDs go in first, so istiod starts with its Gateway API controller enabled.
+bash "$ROOT/setup/gateway-api-crds.sh"
+
 case "$MODE" in
   sidecar)
     # "minimal" = istiod only. Labs add gateways themselves when a task needs them.
@@ -24,9 +27,6 @@ case "$MODE" in
     # NOTE: not yet slimmed or tested on a 2-core machine. ztunnel (per node) and istio-cni
     # request more by default, so expect this mode to be tighter than sidecar mode.
     echo ">> Installing Istio ${ISTIO_VERSION} (ambient mode, default resources)"
-    if ! kubectl get crd gateways.gateway.networking.k8s.io >/dev/null 2>&1; then
-      kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
-    fi
     istioctl install --set profile=ambient -y
     ;;
   *) echo "Unknown ISTIO_MODE '$MODE' (use sidecar or ambient)" >&2; exit 1 ;;
