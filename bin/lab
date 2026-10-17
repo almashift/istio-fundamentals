@@ -6,6 +6,10 @@ source "$ROOT/bin/lib.sh"
 source "$ROOT/versions.env"
 STATE="$ROOT/.lab-state"
 mkdir -p "$STATE"
+# Single-lab sessions (Killercoda: one scenario per lab) write the lab's directory name here;
+# the other labs are then hidden, since their starting state would replace this one.
+ONLY_LAB=""; [ -f "$STATE/session-lab" ] && ONLY_LAB="$(cat "$STATE/session-lab")"
+COURSE_URL="https://learn.almashift.com/lms/courses/istio-fundamentals"
 
 usage() {
   cat <<USAGE
@@ -32,6 +36,9 @@ lab_dir() {
   if [[ "$q" =~ ^[0-9]+$ ]]; then q="$(printf '%02d' "$((10#$q))")"; fi
   local m=( "$ROOT"/labs/"$q"* )
   [ -d "${m[0]}" ] || die "No lab matching '$1'. Try: lab list"
+  if [ -n "$ONLY_LAB" ] && [ "$(basename "${m[0]}")" != "$ONLY_LAB" ]; then
+    die "This session is for Lab $((10#${ONLY_LAB%%-*})) only. Open other labs from their lessons: $COURSE_URL"
+  fi
   echo "${m[0]}"
 }
 
@@ -77,7 +84,9 @@ cmd_list() {
   printf "%s  %-3s %-46s %-22s %s\n" " " "ID" "TITLE" "DOMAIN" "MIN"
   local d n
   for d in "$ROOT"/labs/[0-9]*/; do
-    d="${d%/}"; n="$(basename "$d")"; load_meta "$d"
+    d="${d%/}"; n="$(basename "$d")"
+    [ -z "$ONLY_LAB" ] || [ "$n" = "$ONLY_LAB" ] || continue
+    load_meta "$d"
     local mark=" "; [ -f "$STATE/$n.passed" ] && mark="${GREEN}✔${RESET}"
     printf "%s  %-3s %-46s %-22s %s\n" "$mark" "$((10#${n%%-*}))" "$TITLE" "$DOMAIN" "$MINUTES"
   done
@@ -137,7 +146,9 @@ cmd_solve() { local d; d="$(lab_dir "${1:-}")"; LAB_DIR="$d" bash "$d/solution/a
 
 cmd_verify() {
   local targets=() d n out fails=0
-  if [ $# -gt 0 ]; then targets=( "$(lab_dir "$1")" ); else targets=( "$ROOT"/labs/[0-9]*/ ); fi
+  if [ $# -gt 0 ]; then targets=( "$(lab_dir "$1")" )
+  elif [ -n "$ONLY_LAB" ]; then targets=( "$ROOT/labs/$ONLY_LAB" )
+  else targets=( "$ROOT"/labs/[0-9]*/ ); fi
   for d in "${targets[@]}"; do
     d="${d%/}"; n="$(basename "$d")"
     section "verify: $n"
