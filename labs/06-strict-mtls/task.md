@@ -1,4 +1,4 @@
-# Lab 06 - Lock down the store (strict mTLS)
+# Lab 6 - Lock down the store (strict mTLS)
 
 **Domain:** Security   **Time:** ~15 min   **Namespace:** `meshmart`
 

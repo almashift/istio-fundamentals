@@ -1,10 +1,10 @@
-# Solution - Lab 01
+# Solution - Lab 1
 
 ```bash
 kubectl label ns meshmart istio-injection=enabled
 kubectl -n meshmart rollout restart deploy
 kubectl -n meshmart get pods        # every pod shows 2/2: app + istio-proxy
-istioctl proxy-status               # every MeshMart proxy is SYNCED
+istioctl proxy-status               # every MeshMart proxy is listed and connected to istiod
 ```
 
 ## Why it works

@@ -1,11 +1,12 @@
-# Lab 03 - Open the store to customers (Gateway API)
+# Lab 3 - Open the store to customers (Gateway API)
 
 **Domain:** Traffic management   **Time:** ~15 min   **Namespace:** `meshmart`
 
 ## Scenario
 MeshMart runs in the mesh, but customers outside the cluster can't reach it yet:
-there is no ingress. The platform team has standardised on the **Kubernetes Gateway
-API** (not Istio's own `Gateway`/`VirtualService`), with Istio as the implementation.
+there is no ingress. The platform team has standardised on the
+**Kubernetes Gateway API** (not Istio's own `Gateway`/`VirtualService`), with Istio as
+the implementation.
 
 ## Your task
 In namespace `meshmart`, open the store through a gateway:

@@ -1,4 +1,4 @@
-# Lab 08 - Fix the broken store (troubleshooting)
+# Lab 8 - Fix the broken store (troubleshooting)
 
 **Domain:** Troubleshooting   **Time:** ~15 min   **Namespace:** `meshmart`
 

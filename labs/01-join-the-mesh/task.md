@@ -1,4 +1,4 @@
-# Lab 01 - Bring MeshMart into the mesh
+# Lab 1 - Bring MeshMart into the mesh
 
 **Domain:** Installation   **Time:** ~10 min   **Namespace:** `meshmart`
 

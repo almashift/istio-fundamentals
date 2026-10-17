@@ -1,4 +1,4 @@
-# Solution - Lab 03
+# Solution - Lab 3
 
 ```
 lab solve 3      # applies solution/solution.yaml and waits for the gateway pod

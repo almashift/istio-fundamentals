@@ -1,4 +1,4 @@
-# Lab 02 - Turn on access logging for the store
+# Lab 2 - Turn on access logging for the store
 
 **Domain:** Installation   **Time:** ~10 min   **Namespace:** `meshmart`
 

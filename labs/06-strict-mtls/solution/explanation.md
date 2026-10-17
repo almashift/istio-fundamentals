@@ -1,4 +1,4 @@
-# Solution - Lab 06
+# Solution - Lab 6
 
 ```
 lab solve 6      # applies solution/solution.yaml

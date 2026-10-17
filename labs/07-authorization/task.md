@@ -1,4 +1,4 @@
-# Lab 07 - Only web may call catalog (authorization)
+# Lab 7 - Only web may call catalog (authorization)
 
 **Domain:** Security   **Time:** ~15 min   **Namespace:** `meshmart`
 

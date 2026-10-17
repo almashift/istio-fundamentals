@@ -1,4 +1,4 @@
-# Lab 05 - Keep checkout fast (timeouts and retries)
+# Lab 5 - Keep checkout fast (timeouts and retries)
 
 **Domain:** Traffic management   **Time:** ~15 min   **Namespace:** `meshmart`
 

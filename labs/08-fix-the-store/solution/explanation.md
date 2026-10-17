@@ -1,4 +1,4 @@
-# Solution - Lab 08
+# Solution - Lab 8
 
 ```
 lab solve 8      # fixes both faults
@@ -12,7 +12,7 @@ Every call from web to catalog matches this route and goes nowhere, so Envoy ans
 VirtualService, which nothing else needed).
 
 You can see it in `istioctl proxy-config routes deploy/web -n meshmart` too, and, with
-access logs on (lab 02), as 503s in web's proxy log.
+access logs on (lab 2), as 503s in web's proxy log.
 
 ## Fault 2: cart left the mesh
 `kubectl -n meshmart get pods` shows cart as `1/1`, and `istioctl proxy-status` has no
@@ -21,9 +21,9 @@ overrides the namespace's injection setting. Removing the label rolls out a new 
 injection gives it a sidecar.
 
 The store still worked without cart's sidecar because the namespace is PERMISSIVE.
-Under STRICT mTLS (lab 06), every call to cart would have failed.
+Under STRICT mTLS (lab 6), every call to cart would have failed.
 
 ## Troubleshooting order
 1. **Configuration:** `istioctl analyze`
-2. **Control plane:** `istioctl proxy-status` (is every proxy connected and SYNCED?)
+2. **Control plane:** `istioctl proxy-status` (is every proxy connected and up to date?)
 3. **Data plane:** `istioctl proxy-config routes|clusters|listeners`, proxy logs

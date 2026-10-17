@@ -79,7 +79,7 @@ cmd_list() {
   for d in "$ROOT"/labs/[0-9]*/; do
     d="${d%/}"; n="$(basename "$d")"; load_meta "$d"
     local mark=" "; [ -f "$STATE/$n.passed" ] && mark="${GREEN}✔${RESET}"
-    printf "%s  %-3s %-46s %-22s %s\n" "$mark" "${n%%-*}" "$TITLE" "$DOMAIN" "$MINUTES"
+    printf "%s  %-3s %-46s %-22s %s\n" "$mark" "$((10#${n%%-*}))" "$TITLE" "$DOMAIN" "$MINUTES"
   done
 }
 
@@ -93,10 +93,10 @@ cmd_start() {
   LAB_DIR="$d" bash "$d/init.sh"
   rm -f "$STATE/$n.passed" "$STATE/$n.hints"
   date +%s > "$STATE/$n.started"
-  echo; cat "$d/task.md"
+  echo; render_md "$d/task.md"
 }
 
-cmd_task() { cat "$(lab_dir "${1:-}")/task.md"; }
+cmd_task() { render_md "$(lab_dir "${1:-}")/task.md"; }
 
 cmd_check() {
   local d n; d="$(lab_dir "${1:-}")"; n="$(basename "$d")"
@@ -117,19 +117,20 @@ cmd_hint() {
   local next=$((used + 1))
   if [ -f "$d/hints/$next.md" ]; then
     echo "$next" > "$STATE/$n.hints"
-    info "Hint $next"; cat "$d/hints/$next.md"
+    info "Hint $next"; render_md "$d/hints/$next.md"
   else
     echo "No more hints. Try 'lab solution ${1}' if you are truly stuck."
   fi
 }
 
 cmd_solution() {
-  local d; d="$(lab_dir "${1:-}")"
-  if [ "${LAB_YES:-}" != "1" ]; then
-    read -r -p "Reveal the solution? You'll learn more if you try first. [y/N] " ans
+  local d n; d="$(lab_dir "${1:-}")"; n="$(basename "$d")"
+  # Ask only before the lab is passed; afterwards the solution is there to compare and learn from.
+  if [ "${LAB_YES:-}" != "1" ] && [ ! -f "$STATE/$n.passed" ]; then
+    read -r -p "You haven't passed this lab yet. Show the solution anyway? You'll learn more if you try first. [y/N] " ans
     [[ "$ans" =~ ^[Yy]$ ]] || { echo "Good call. Try 'lab hint ${1}' first."; return 0; }
   fi
-  cat "$d/solution/explanation.md"
+  render_md "$d/solution/explanation.md"
 }
 
 cmd_solve() { local d; d="$(lab_dir "${1:-}")"; LAB_DIR="$d" bash "$d/solution/apply.sh"; }

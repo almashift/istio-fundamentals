@@ -1,4 +1,4 @@
-# Lab 04 - Canary catalog v2 at 90/10
+# Lab 4 - Canary catalog v2 at 90/10
 
 **Domain:** Traffic management   **Time:** ~10 min   **Namespace:** `meshmart`
 
