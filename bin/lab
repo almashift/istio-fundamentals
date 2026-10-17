@@ -12,6 +12,7 @@ ONLY_LAB=""; [ -f "$STATE/session-lab" ] && ONLY_LAB="$(cat "$STATE/session-lab"
 COURSE_URL="https://learn.almashift.com/lms/courses/istio-fundamentals"
 
 usage() {
+  if [ -n "$ONLY_LAB" ]; then session_usage; return; fi
   cat <<USAGE
 ${BOLD}lab${RESET} - hands-on Istio practice
 
@@ -31,13 +32,28 @@ ${BOLD}lab${RESET} - hands-on Istio practice
 USAGE
 }
 
+session_usage() {  # a single-lab session only needs the commands for its own lab
+  local id=$((10#${ONLY_LAB%%-*})); load_meta "$ROOT/labs/$ONLY_LAB"
+  cat <<USAGE
+${BOLD}lab${RESET} - Lab ${id}: ${TITLE}
+
+  lab task ${id}        show the task again
+  lab check ${id}       grade your work
+  lab hint ${id}        reveal the next hint (use sparingly!)
+  lab solution ${id}    show the explained solution
+  lab start ${id}       reset the lab to its starting state
+
+When lab check passes, click CHECK in the lab panel to finish.
+USAGE
+}
+
 lab_dir() {
-  local q="${1:-}"; [ -n "$q" ] || die "Missing lab id. Try: lab list"
+  local q="${1:-$ONLY_LAB}"; [ -n "$q" ] || die "Missing lab id. Try: lab list"
   if [[ "$q" =~ ^[0-9]+$ ]]; then q="$(printf '%02d' "$((10#$q))")"; fi
   local m=( "$ROOT"/labs/"$q"* )
   [ -d "${m[0]}" ] || die "No lab matching '$1'. Try: lab list"
   if [ -n "$ONLY_LAB" ] && [ "$(basename "${m[0]}")" != "$ONLY_LAB" ]; then
-    die "This session is for Lab $((10#${ONLY_LAB%%-*})) only. Open other labs from their lessons: $COURSE_URL"
+    die "This session is for Lab $((10#${ONLY_LAB%%-*})) only. For another lab, go BACK and start its scenario, or open it from its lesson: $COURSE_URL"
   fi
   echo "${m[0]}"
 }
@@ -184,6 +200,12 @@ cmd_reset_cluster() {
 
 main() {
   local cmd="${1:-help}"; shift || true
+  if [ -n "$ONLY_LAB" ]; then
+    case "$cmd" in
+      start|reset|task|check|hint|solution|help|-h|--help) ;;
+      *) echo "'lab $cmd' isn't available in this lab session."; echo; usage; exit 1 ;;
+    esac
+  fi
   case "$cmd" in
     list)           cmd_list ;;
     start|reset)    cmd_start "$@" ;;
