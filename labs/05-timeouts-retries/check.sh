@@ -16,10 +16,11 @@ catalog_still_slow() {   # the fix must be in the mesh, not in catalog's setting
     grep -q '"name":"DELAY","value":"10s"' <<<"$out" || return 1
   done
 }
-# Sum of upstream_rq_retry over every outbound catalog cluster in web's Envoy.
+# Sum of upstream_rq_retry over every outbound catalog cluster in web's Envoy. Istio's stat
+# names put a ";" before the metric (catalog.meshmart.svc.cluster.local;.upstream_rq_retry).
 retries() {
   kubectl -n "$NS" exec deploy/web -c istio-proxy -- pilot-agent request GET stats 2>/dev/null |
-    awk -F': ' '/^cluster\.outbound\|80\|[^|]*\|catalog\.meshmart\.svc\.cluster\.local\.upstream_rq_retry: / { s += $2 } END { print s + 0 }'
+    awk -F': ' '/^cluster\.outbound\|80\|[^|]*\|catalog\.meshmart\.svc\.cluster\.local;?\.upstream_rq_retry: / { s += $2 } END { print s + 0 }'
 }
 
 section "Environment"
