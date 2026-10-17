@@ -7,7 +7,7 @@ behaviour (traffic splits, rejected requests), not just whether YAML was accepte
 ## Quick start (GitHub Codespaces)
 
 1. Fork this repository to your **personal GitHub account**.
-2. In your fork, select **Code > Codespaces > Create codespace on main**. Choose the smallest machine (2-core / 8 GB / 32 GB).
+2. In your fork, select **Code > Codespaces > Create codespace on master**. Choose the smallest machine (2-core / 8 GB / 32 GB).
 3. Wait for the terminal to print `Environment ready`. The first start creates a
    `kind` cluster and installs Istio (takes a few minutes).
 4. Run inside the vscode terminal window inside the codespaces:
