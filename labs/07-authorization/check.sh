@@ -37,8 +37,13 @@ while :; do
   wg="$(call web GET catalog)"; wp="$(call web POST catalog)"
   cg="$(call cart GET catalog)"; og="$(call orders GET catalog)"
   if [ "$wg" = 200 ] && [ "$wp" = 403 ] && [ "$cg" = 403 ] && [ "$og" = 403 ]; then break; fi
-  [ "$attempt" -ge 3 ] && break
-  attempt=$((attempt + 1)); sleep 4   # policy may still be reaching the sidecars
+  # A new policy reaches the sidecars within seconds, but requests on connections opened
+  # before it (e.g. by an earlier `lab check`) can still get through while Envoy drains
+  # them. Once a policy is clearly in place (web GET allowed, POST denied), wait up to
+  # ~1 minute for that; otherwise give up after 3 tries.
+  if [ "$wg" = 200 ] && [ "$wp" = 403 ]; then max=12; else max=3; fi
+  [ "$attempt" -ge "$max" ] && break
+  attempt=$((attempt + 1)); sleep 5
 done
 expect() { if [ "$1" = "$2" ]; then ok "$3"; else bad "$3 (got ${1:-no response}, expected $2)"; fi; }
 expect "$wg" 200 "web    GET  catalog -> allowed (200)"
