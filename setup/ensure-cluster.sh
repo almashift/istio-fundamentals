@@ -40,4 +40,4 @@ else
   bash "$ROOT/setup/gateway-api-crds.sh"
   kubectl -n istio-system rollout status deploy/istiod --timeout=300s
 fi
-echo ">> Environment ready. Try:  lab list"
+if command -v kind >/dev/null 2>&1; then echo ">> Environment ready. Try:  lab list"; else echo ">> Environment ready."; fi
