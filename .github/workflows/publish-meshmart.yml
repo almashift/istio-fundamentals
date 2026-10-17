@@ -34,7 +34,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # amd64 for Codespaces and CI; arm64 for Dev Containers on Apple Silicon Macs.
+      # amd64 for Codespaces, Killercoda and CI; arm64 for ARM machines.
       - uses: docker/build-push-action@v6
         with:
           context: meshmart/app

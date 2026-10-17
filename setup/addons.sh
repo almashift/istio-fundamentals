@@ -4,7 +4,7 @@
 #   bash setup/addons.sh            install
 #   bash setup/addons.sh --delete   remove them again
 # NOT needed for any lab, and NOT sized for the 2-core budget: use it on a bigger machine
-# (e.g. a Dev Container on your laptop) to explore what the videos show.
+# (e.g. a 4-core Codespace) to explore what the videos show.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/versions.env"
