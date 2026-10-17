@@ -33,7 +33,7 @@ It also checks that `meshmart-gateway-istio` is owned by Gateway `meshmart-gatew
 Deployment with that name doesn't count.
 
 ## About `PROGRAMMED False`
-kind has no cloud load balancer. The generated Service defaults to `type: LoadBalancer`,
+A lab cluster has no cloud load balancer. The generated Service defaults to `type: LoadBalancer`,
 its external IP stays `<pending>`, and the Gateway reports `Programmed=False`
 (`AddressNotAssigned`). Traffic inside the cluster still works. For a cluster-internal
 gateway, ask for a ClusterIP Service and the Gateway becomes `Programmed=True`:

@@ -42,6 +42,7 @@ ${BOLD}lab${RESET} - Lab $((10#${ONLY_LAB%%-*})): ${TITLE}
   lab check       grade your work
   lab hint        reveal the next hint (use sparingly!)
   lab solution    show the explained solution
+  lab solve       apply the reference solution (if you're stuck)
   lab start       reset the lab to its starting state
 
 When lab check passes, click CHECK in the lab panel to finish.
@@ -209,7 +210,7 @@ main() {
   local cmd="${1:-help}"; shift || true
   if [ -n "$ONLY_LAB" ]; then
     case "$cmd" in
-      start|reset|task|check|hint|solution|help|-h|--help) ;;
+      start|reset|task|check|hint|solution|solve|help|-h|--help) ;;
       *) echo "'lab $cmd' isn't available in this lab session."; echo; usage; exit 1 ;;
     esac
   fi

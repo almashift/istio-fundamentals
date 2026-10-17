@@ -33,7 +33,7 @@ kubectl -n meshmart exec deploy/visitor -- curl -s -H 'Host: shop.meshmart.local
 kubectl -n meshmart get gateway meshmart-gateway -o yaml     # read status.conditions
 istioctl analyze -n meshmart
 ```
-On this kind cluster there is no cloud load balancer, so a `LoadBalancer` Service
+This lab cluster has no cloud load balancer, so a `LoadBalancer` Service
 stays `<pending>`, and a Gateway that asks for one reports `PROGRAMMED False`
 (`AddressNotAssigned`). That on its own does not stop in-cluster traffic.
 
