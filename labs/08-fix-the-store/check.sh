@@ -40,13 +40,16 @@ section "Data plane"
 check "every MeshMart pod runs an istio-proxy sidecar"    all_pods_have_sidecar
 check "istiod has sent configuration to every MeshMart proxy" proxies_synced
 
-section "Store working (loadgen traffic for 15 seconds)"
+section "Store working"
 for _ in $(seq 1 30); do   # measure the settled store, once restarted pods have gone
   terminating="$(kubectl -n "$NS" get pods -o jsonpath='{range .items[*]}{.metadata.deletionTimestamp}{"\n"}{end}' 2>/dev/null | grep -c . || true)"
   [ "${terminating:-0}" -eq 0 ] && break
+  [ "$terminating" != "${shown:-}" ] && note "waiting for $terminating old pod(s) to finish shutting down"
+  shown="$terminating"
   sleep 2
 done
 loadgen "?reset=1" >/dev/null
+note "watching loadgen's requests for 15 seconds"
 sleep 15
 stats="$(loadgen "")"
 sent="$(grep -o '"sent": [0-9]*' <<<"$stats" | grep -o '[0-9]*$' || echo 0)"
