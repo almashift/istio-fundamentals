@@ -1,4 +1,4 @@
-# Alma Academy - Istio Practice Labs
+# AlmaShift - Istio Practice Labs
 
 Learn Istio by doing. Every lab starts from a realistic, pre-built cluster state,
 asks you to produce an **outcome**, and is graded by a script that tests real

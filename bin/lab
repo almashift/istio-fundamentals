@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lab - Alma Academy practice runner
+# lab - AlmaShift practice runner
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/bin/lib.sh"
