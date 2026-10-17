@@ -1,7 +1,7 @@
 # Solution - Lab 4
 
 ```
-lab solve 4      # applies solution/solution.yaml
+lab solve      # applies solution/solution.yaml
 ```
 
 ## What and why

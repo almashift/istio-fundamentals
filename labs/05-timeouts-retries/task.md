@@ -28,6 +28,6 @@ istioctl analyze -n meshmart
 
 ## When you're done
 ```
-lab check 5
+lab check
 ```
-Stuck? `lab hint 5` reveals one hint at a time.
+Stuck? `lab hint` reveals one hint at a time.

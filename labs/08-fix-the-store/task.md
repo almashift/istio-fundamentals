@@ -29,6 +29,6 @@ kubectl -n meshmart logs deploy/web -c istio-proxy --tail=20
 
 ## When you're done
 ```
-lab check 8
+lab check
 ```
-Stuck? `lab hint 8` reveals one hint at a time.
+Stuck? `lab hint` reveals one hint at a time.

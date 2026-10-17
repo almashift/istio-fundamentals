@@ -17,38 +17,44 @@ usage() {
 ${BOLD}lab${RESET} - hands-on Istio practice
 
   lab list                 show all labs and your progress
-  lab start <id>           (re)build the starting state and show the task
-  lab task <id>            show the task again
-  lab check <id>           grade your work
-  lab hint <id>            reveal the next hint (use sparingly!)
-  lab solution <id>        reveal the explained solution
-  lab solve <id>           apply the reference solution to the cluster
+  lab start <id>           (re)build a lab's starting state and show its task
+  lab task                 show the task again
+  lab check                grade your work
+  lab hint                 reveal the next hint (use sparingly!)
+  lab solution             reveal the explained solution
+  lab solve                apply the reference solution to the cluster
   lab verify [id]          (authors/CI) prove start-state FAILS and solution PASSES
   lab doctor               make sure the cluster + Istio are up
   lab budget               show CPU requested vs the 2-core Codespace budget
   lab reset-cluster        delete and rebuild the whole cluster
 
-<id> is the lab number, e.g. 1 or 01.
+<id> is the lab number, e.g. 1. task, check, hint, solution and solve work on the lab
+you started last; add a number to pick another, e.g. lab check 3.
 USAGE
 }
 
 session_usage() {  # a single-lab session only needs the commands for its own lab
-  local id=$((10#${ONLY_LAB%%-*})); load_meta "$ROOT/labs/$ONLY_LAB"
+  load_meta "$ROOT/labs/$ONLY_LAB"
   cat <<USAGE
-${BOLD}lab${RESET} - Lab ${id}: ${TITLE}
+${BOLD}lab${RESET} - Lab $((10#${ONLY_LAB%%-*})): ${TITLE}
 
-  lab task ${id}        show the task again
-  lab check ${id}       grade your work
-  lab hint ${id}        reveal the next hint (use sparingly!)
-  lab solution ${id}    show the explained solution
-  lab start ${id}       reset the lab to its starting state
+  lab task        show the task again
+  lab check       grade your work
+  lab hint        reveal the next hint (use sparingly!)
+  lab solution    show the explained solution
+  lab start       reset the lab to its starting state
 
 When lab check passes, click CHECK in the lab panel to finish.
 USAGE
 }
 
-lab_dir() {
-  local q="${1:-$ONLY_LAB}"; [ -n "$q" ] || die "Missing lab id. Try: lab list"
+lab_dir() {  # the lab named by $1; without one, this session's lab or the lab started last
+  local q="${1:-}"
+  if [ -z "$q" ]; then
+    q="$ONLY_LAB"
+    [ -n "$q" ] || [ ! -f "$STATE/current" ] || q="$(cat "$STATE/current")"
+    [ -n "$q" ] || die "Which lab? Start one first, e.g.: lab start 1   (see: lab list)"
+  fi
   if [[ "$q" =~ ^[0-9]+$ ]]; then q="$(printf '%02d' "$((10#$q))")"; fi
   local m=( "$ROOT"/labs/"$q"* )
   [ -d "${m[0]}" ] || die "No lab matching '$1'. Try: lab list"
@@ -118,10 +124,11 @@ cmd_start() {
   LAB_DIR="$d" bash "$d/init.sh"
   rm -f "$STATE/$n.passed" "$STATE/$n.hints"
   date +%s > "$STATE/$n.started"
+  echo "$n" > "$STATE/current"   # task/check/hint/solution default to this lab
   echo; render_md "$d/task.md"
 }
 
-cmd_task() { render_md "$(lab_dir "${1:-}")/task.md"; }
+cmd_task() { local d; d="$(lab_dir "${1:-}")"; render_md "$d/task.md"; }
 
 cmd_check() {
   local d n; d="$(lab_dir "${1:-}")"; n="$(basename "$d")"
@@ -144,7 +151,7 @@ cmd_hint() {
     echo "$next" > "$STATE/$n.hints"
     info "Hint $next"; render_md "$d/hints/$next.md"
   else
-    echo "No more hints. Try 'lab solution ${1}' if you are truly stuck."
+    echo "No more hints. Try 'lab solution' if you are truly stuck."
   fi
 }
 
@@ -153,7 +160,7 @@ cmd_solution() {
   # Ask only before the lab is passed; afterwards the solution is there to compare and learn from.
   if [ "${LAB_YES:-}" != "1" ] && [ ! -f "$STATE/$n.passed" ]; then
     read -r -p "You haven't passed this lab yet. Show the solution anyway? You'll learn more if you try first. [y/N] " ans
-    [[ "$ans" =~ ^[Yy]$ ]] || { echo "Good call. Try 'lab hint ${1}' first."; return 0; }
+    [[ "$ans" =~ ^[Yy]$ ]] || { echo "Good call. Try 'lab hint' first."; return 0; }
   fi
   render_md "$d/solution/explanation.md"
 }

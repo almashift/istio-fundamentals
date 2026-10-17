@@ -1,7 +1,7 @@
 # Solution - Lab 8
 
 ```
-lab solve 8      # fixes both faults
+lab solve      # fixes both faults
 ```
 
 ## Fault 1: a VirtualService routing to a host that doesn't exist

@@ -15,9 +15,9 @@ behaviour (traffic splits, rejected requests), not just whether YAML was accepte
 ```bash
 lab list          # see all labs
 lab start 1       # build the starting state and read the task
-lab check 1       # grade your work
-lab hint 1        # one hint at a time
-lab solution 1    # explained solution (try first!)
+lab check         # grade your work
+lab hint          # one hint at a time
+lab solution      # explained solution (try first!)
 lab budget        # CPU requested vs the 2-core budget
 ```
 

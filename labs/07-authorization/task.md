@@ -29,6 +29,6 @@ kubectl -n meshmart exec deploy/web  -- curl -s -o /dev/null -w "%{http_code}\n"
 
 ## When you're done
 ```
-lab check 7
+lab check
 ```
-Stuck? `lab hint 7` reveals one hint at a time.
+Stuck? `lab hint` reveals one hint at a time.

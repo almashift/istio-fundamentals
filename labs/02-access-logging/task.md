@@ -24,6 +24,6 @@ kubectl get telemetry -A
 
 ## When you're done
 ```
-lab check 2
+lab check
 ```
-Stuck? `lab hint 2` reveals one hint at a time.
+Stuck? `lab hint` reveals one hint at a time.

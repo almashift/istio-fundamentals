@@ -39,6 +39,6 @@ stays `<pending>`, and a Gateway that asks for one reports `PROGRAMMED False`
 
 ## When you're done
 ```
-lab check 3
+lab check
 ```
-Stuck? `lab hint 3` reveals one hint at a time.
+Stuck? `lab hint` reveals one hint at a time.

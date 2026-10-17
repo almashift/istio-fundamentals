@@ -29,6 +29,6 @@ kubectl -n meshmart exec deploy/loadgen -- curl -s localhost:8080/stats
 
 ## When you're done
 ```
-lab check 1
+lab check
 ```
-Stuck? `lab hint 1` reveals one hint at a time.
+Stuck? `lab hint` reveals one hint at a time.
