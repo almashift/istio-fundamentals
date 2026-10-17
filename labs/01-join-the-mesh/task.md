@@ -4,7 +4,7 @@
 
 ## Scenario
 Istio is installed, and MeshMart is running in the `meshmart` namespace, but none of
-its pods are in the mesh yet: no sidecars, no mTLS, nothing in Kiali.
+its pods are in the mesh yet: no sidecars, no mTLS, no telemetry.
 
 `loadgen` sends the store a steady stream of requests, like real shoppers would.
 
