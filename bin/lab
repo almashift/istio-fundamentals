@@ -166,7 +166,10 @@ cmd_verify() {
 }
 
 cmd_doctor() { bash "$ROOT/setup/ensure-cluster.sh"; }
-cmd_reset_cluster() { kind delete cluster --name "$CLUSTER_NAME" || true; bash "$ROOT/setup/ensure-cluster.sh"; }
+cmd_reset_cluster() {
+  command -v kind >/dev/null 2>&1 || die "This cluster isn't managed by kind. For a fresh one, restart your lab session (on Killercoda: reload the page)."
+  kind delete cluster --name "$CLUSTER_NAME" || true; bash "$ROOT/setup/ensure-cluster.sh"
+}
 
 main() {
   local cmd="${1:-help}"; shift || true

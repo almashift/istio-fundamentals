@@ -18,7 +18,8 @@ if ! command -v kubectl >/dev/null 2>&1; then
   $SUDO install -m 0755 "$TMP/kubectl" /usr/local/bin/kubectl
 fi
 
-if ! command -v kind >/dev/null 2>&1 || ! kind version | grep -q "${KIND_VERSION}"; then
+# INSTALL_KIND=0 when the machine already has a cluster (e.g. Killercoda): labs then use it.
+if [ "${INSTALL_KIND:-1}" = 1 ] && { ! command -v kind >/dev/null 2>&1 || ! kind version | grep -q "${KIND_VERSION}"; }; then
   echo ">> Installing kind ${KIND_VERSION}"
   curl -fsSL -o "$TMP/kind" "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${ARCH}"
   $SUDO install -m 0755 "$TMP/kind" /usr/local/bin/kind
